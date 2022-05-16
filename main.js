@@ -190,6 +190,7 @@ function XOR(arr1, arr2){
     return result;
 }
 
+//zamiana sekwencji 6bitowej na 4bitowa zgodnie z tablicami S
 function bitSequenceTo4(sequence, arr){
     let rowID = sequence[0] + sequence[5]
     let colID = sequence.substring(1,5)
@@ -203,6 +204,7 @@ function bitSequenceTo4(sequence, arr){
     return result4digits
 }
 
+//finalna permutacja tablicy
 function arrayPermutation(arr, Parray){
     let result = []
     for(let i = 0; i < arr.length; i++){
@@ -212,6 +214,7 @@ function arrayPermutation(arr, Parray){
     return result
 }
 
+//dopelnienie tekstu do pełnego 64 bitowego bloku
 function fillString(text){
     let len = text.length
     if(len % 8 === 0){
@@ -390,7 +393,13 @@ function DES_decipher(text, key){
 
     return finalPermutation
 }
-function handleDES_encipher(text,key){
+function handleDES_encipher(){
+    let text = document.getElementById('text').value
+    let key = document.getElementById('key').value
+    if(key.length !== 8){
+        alert("Podaj klucz o długości 8 znaków")
+        return
+    }
     let result = ''
     let bin = ''
     text = fillString(text)
@@ -402,10 +411,16 @@ function handleDES_encipher(text,key){
         bin += binResult.join('')
         result += binaryToText(binResult.join(''))
     }
-
+    document.getElementById('result').value = result
     return result
 }
-function handleDES_decipher(text,key){
+function handleDES_decipher(){
+    let text = document.getElementById('result').value
+    let key = document.getElementById('key').value
+    if(key.length !== 8){
+        alert("Podaj klucz o długości 8 znaków")
+        return
+    }
     let result = ''
     let bin = ''
 
@@ -418,11 +433,7 @@ function handleDES_decipher(text,key){
     }
     console.log("result " + result)
 
+    document.getElementById('text').value = result.substring(0,result.length - result[result.length - 1])
     return result
 }
-// DES("aleksander", "aleksander")
-
-let encrypted = handleDES_encipher("jgogghisdgioisdggdsggds","fsa48fs9")
-handleDES_decipher(encrypted,"fsa48fs9")
-
 
