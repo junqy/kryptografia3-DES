@@ -145,10 +145,18 @@ function text2Binary(string) {
     }).join('');
 }
 
+//zamiana reprezentacji binarnej na tekst
+function binaryToText(binary) {
+
+    binary = binary.match(/.{1,8}/g);
+
+   return binary.map(elem => String.fromCharCode(parseInt(elem, 2))).join("");
+   }
+
 //funkcja permutujaca wg. tabeli danej w argumencie
 function Permutation(text, arr, n){
     let result = ""
-    for(i = 0; i < n; i++){
+    for(let i = 0; i < n; i++){
         result += text[arr[i] - 1]
     }
     return result
@@ -159,7 +167,7 @@ function leftShift(key, shift){
     let n = key.length
     let keyShifted = key;
 
-    for(i = 0, j = 0; i < n; i++){
+    for(let i = 0, j = 0; i < n; i++){
         if(i + shift < n) {
             keyShifted = keyShifted.replaceAt(i, key.charAt(i + shift))
         }
@@ -175,7 +183,7 @@ function XOR(arr1, arr2){
     let n = arr1.length
     let result = "";
 
-    for(i = 0; i < n; i++){
+    for(let i = 0; i < n; i++){
         result += arr1[i] ^ arr2[i]
     }
     
@@ -191,22 +199,36 @@ function bitSequenceTo4(sequence, arr){
     let result = arr[rowBCD][colBCD]
     let result4digits = result.toString(2).padStart(4, '0');
 
-    console.log(result4digits)
+    // console.log(result4digits)
     return result4digits
 }
 
-function DES(text, key){
-    //console.log(text)
-    let result = text2Binary(text);
-    result = Permutation(result, ipTab, 64)
+function arrayPermutation(arr, Parray){
+    let result = []
+    for(let i = 0; i < arr.length; i++){
+        let pos = Parray[i] - 1
+        result.push(arr[pos])
+    }
+    return result
+}
 
-    //PODZIAŁ NA BLOKI LEWY I PRAWY
+function fillString(text){
+    let len = text.length
+    if(len % 8 === 0){
+        return text
+    } else{
+        for(let i = len % 8; i < 7; i++){
+            text += "0"
+        }
+        text += 8 - (len % 8 );
+        
+    }
+     return text
+}
 
-    let blockL = result.substring(0,32)
-    let blockR = result.substring(32,64)
-
+function getKeys(key){
     //PREMUTACJA KLUCZA I SKRÓCENIE GO O 8 BITÓW
-
+    let keys = []
     let keyBit = text2Binary(key);
     keyBit = Permutation(keyBit, pc1Tab, 56)
 
@@ -215,12 +237,32 @@ function DES(text, key){
     let blockC = keyBit.substring(0,28)
     let blockD = keyBit.substring(28,56)
 
-    //ITERACJE
-    for(i = 0; i < 1; i++){
+    for(let i = 0; i <16 ; i++){
         blockC = leftShift(blockC, shiftTab[i])
         blockD = leftShift(blockD, shiftTab[i])
         let keyK = blockC + blockD
         let keyK_permuted = Permutation(keyK, pc2Tab, 48)
+        keys.push(keyK_permuted)
+    }
+    return keys
+}
+
+function DES_encipher(text, key){
+    //console.log(text)
+    let result = text2Binary(text);
+    result = Permutation(result, ipTab, 64)
+    let keys = getKeys(key)
+    //PODZIAŁ NA BLOKI LEWY I PRAWY
+
+    let blockL = result.substring(0,32)
+    let blockR = result.substring(32,64)
+
+
+
+    //ITERACJE
+    for(let i = 0; i < 16; i++){
+  
+        let keyK_permuted  = keys[i]
         let blockR48 = Permutation(blockR, eTab, 48)
         let xorRes = XOR(keyK_permuted, blockR48);
 
@@ -242,7 +284,145 @@ function DES(text, key){
         let bit4seq7 = bitSequenceTo4(bit6seq7, s7Tab)
         let bit4seq8 = bitSequenceTo4(bit6seq8, s8Tab)
 
+        //łączenie 4-bitowych ciągów
+        let bit32seq = []
+        bit32seq.push(...bit4seq1)
+        bit32seq.push(...bit4seq2)
+        bit32seq.push(...bit4seq3)
+        bit32seq.push(...bit4seq4)
+        bit32seq.push(...bit4seq5)
+        bit32seq.push(...bit4seq6)
+        bit32seq.push(...bit4seq7)
+        bit32seq.push(...bit4seq8)
+
+  
+
+        //permutacja
+        let pArray = arrayPermutation(bit32seq, pTab)
+ 
+
+        //krok 15 XOR'owanie uzyskanego bloku blockL
+        let XORblock = XOR(pArray,blockL)
+        
+ 
+        blockL = blockR.slice()
+        blockR = XORblock
+
     }
+    //łaczenie bloków 
+    let finalBlock = blockR + blockL
+
+    //krok 18 odwrócona tablica permutacji
+    let finalPermutation = arrayPermutation(finalBlock.split(''),ipMinusTab)
+
+ 
+    return finalPermutation
 }
 
-DES("aleksander", "aleksander")
+function DES_decipher(text, key){
+    //console.log(text)
+    let result = text2Binary(text);
+    result = Permutation(result, ipTab, 64)
+    let keys = getKeys(key)
+    //PODZIAŁ NA BLOKI LEWY I PRAWY
+
+    let blockL = result.substring(0,32)
+    let blockR = result.substring(32,64)
+
+
+
+    //ITERACJE
+    for(let i = 15; i > -1; i--){
+  
+        let keyK_permuted  = keys[i]
+        let blockR48 = Permutation(blockR, eTab, 48)
+        let xorRes = XOR(keyK_permuted, blockR48);
+
+        let bit6seq1 = xorRes.substring(0, 6);
+        let bit6seq2 = xorRes.substring(6, 12);
+        let bit6seq3 = xorRes.substring(12, 18);
+        let bit6seq4 = xorRes.substring(18, 24);
+        let bit6seq5 = xorRes.substring(24, 30);
+        let bit6seq6 = xorRes.substring(30, 36);
+        let bit6seq7 = xorRes.substring(36, 42);
+        let bit6seq8 = xorRes.substring(42, 48);
+
+        let bit4seq1 = bitSequenceTo4(bit6seq1, s1Tab)
+        let bit4seq2 = bitSequenceTo4(bit6seq2, s2Tab)
+        let bit4seq3 = bitSequenceTo4(bit6seq3, s3Tab)
+        let bit4seq4 = bitSequenceTo4(bit6seq4, s4Tab)
+        let bit4seq5 = bitSequenceTo4(bit6seq5, s5Tab)
+        let bit4seq6 = bitSequenceTo4(bit6seq6, s6Tab)
+        let bit4seq7 = bitSequenceTo4(bit6seq7, s7Tab)
+        let bit4seq8 = bitSequenceTo4(bit6seq8, s8Tab)
+
+        //łączenie 4-bitowych ciągów
+        let bit32seq = []
+        bit32seq.push(...bit4seq1)
+        bit32seq.push(...bit4seq2)
+        bit32seq.push(...bit4seq3)
+        bit32seq.push(...bit4seq4)
+        bit32seq.push(...bit4seq5)
+        bit32seq.push(...bit4seq6)
+        bit32seq.push(...bit4seq7)
+        bit32seq.push(...bit4seq8)
+
+  
+
+        //permutacja
+        let pArray = arrayPermutation(bit32seq, pTab)
+ 
+
+        //krok 15 XOR'owanie uzyskanego bloku blockL
+        let XORblock = XOR(pArray,blockL)
+        
+ 
+        blockL = blockR.slice()
+        blockR = XORblock
+
+    }
+    //łaczenie bloków 
+    let finalBlock = blockR + blockL
+
+    //krok 18 odwrócona tablica permutacji
+    let finalPermutation = arrayPermutation(finalBlock.split(''),ipMinusTab)
+
+
+    return finalPermutation
+}
+function handleDES_encipher(text,key){
+    let result = ''
+    let bin = ''
+    text = fillString(text)
+
+    let n = text.length/8
+    for(let i = 0; i <n;i++){
+        let temp = text.substring((i*8),((i+1)*8))
+        let binResult = DES_encipher(temp,key)
+        bin += binResult.join('')
+        result += binaryToText(binResult.join(''))
+    }
+
+    return result
+}
+function handleDES_decipher(text,key){
+    let result = ''
+    let bin = ''
+
+    let n = text.length/8
+    for(let i = 0; i <n;i++){
+        let temp = text.substring((i*8),((i+1)*8))
+        let binResult = DES_decipher(temp,key)
+        bin += binResult.join('')
+        result += binaryToText(binResult.join(''))
+    }
+    console.log("result " + result)
+
+    return result
+}
+// DES("aleksander", "aleksander")
+
+let encrypted = handleDES_encipher("jgogghisdgioisdggdsggds","fsa48fs9")
+handleDES_decipher(encrypted,"fsa48fs9")
+
+
